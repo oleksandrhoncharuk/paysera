@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="toolbar_title">Currency Converter</string>
+  <string name="balance_title">MY BALANCE</string>
+  <string name="exchange_title">CURRENCY EXCHANGE</string>
+  <string name="submit_button_text">SUBMIT</string>
+  <string name="sell_text">Sell</string>
+  <string name="receive_text">Receive</string>
+  <string name="no_balance_available">No balances available</string>
+</resources>

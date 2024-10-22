@@ -1,0 +1,20 @@
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+rootProject.name = "paysera"
+include ':app'
+include ':paysera-database'
+include ':paysera-network'
+include ':paysera-core'
+include ':paysera-compose-ui'
