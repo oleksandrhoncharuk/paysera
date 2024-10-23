@@ -23,14 +23,36 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
   val balance by viewModel.currencyBalanceDBLiveData.observeAsState()
   val currencyList by viewModel.currencyNames.observeAsState()
   val receiveAmount by viewModel.receivedAmountOfSelectedCurrency.observeAsState()
+  val sellCurrencyAmountLeft by viewModel.sellCurrencyAmountLeft.observeAsState()
+  val fee by viewModel.sellCurrencyFee.observeAsState()
+
   var currencyState by remember { mutableStateOf(CurrencyState()) }
 
-  val currencyStateUpdate = { sellState: CurrencyState ->
-    currencyState = sellState
-    viewModel.loadReceiveAmountOfSelectedCurrency(
-      currencyState.currencySellName,
-      currencyState.currencyReceiveName,
-      currencyState.sellAmount.toDoubleOrNull() ?: 0.0
+  sellCurrencyAmountLeft?.let { amountLeft ->
+    currencyState = currencyState.copy(
+      currencyAmount = amountLeft
+    )
+  }
+
+  receiveAmount?.let {
+    currencyState = currencyState.copy(
+      receiveAmount = it
+    )
+  }
+
+  fee?.let {
+    currencyState = currencyState.copy(
+      fee = it
+    )
+  }
+
+  val currencyStateUpdate = { newState: CurrencyState ->
+    currencyState = newState
+
+    viewModel.updateAmountOfSelectedCurrencies(
+      newState.currencySellName,
+      newState.currencyReceiveName,
+      newState.sellAmount.toDoubleOrNull() ?: 0.0
     )
   }
 
@@ -50,16 +72,15 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
       modifier = Modifier.padding(top = 25.dp, bottom = 15.dp)
     )
 
-//    CurrencyExchangeItem(isSell = true, operationAmount = 100.00, currency = "USD")
     CurrencyExchangeSellItem(currencyState, currencyList, currencyStateUpdate)
+
     HorizontalDivider(
       color = Color.LightGray,
       modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp)
     )
-//    CurrencyExchangeItem(isSell = false, operationAmount = 100.00, currency = "EUR")
-    CurrencyExchangeReceiveItem(currencyState, currencyList, receiveAmount, currencyStateUpdate)
+
+    CurrencyExchangeReceiveItem(currencyState.copy(isSell = false), currencyList, receiveAmount, currencyStateUpdate)
   }
 
   SubmitButton(viewModel, currencyState)
 }
-

@@ -53,11 +53,16 @@ fun DropDownCurrency(
       currencyList.forEachIndexed { index, currencyName ->
         DropdownMenuItem(text = {
           Text(text = currencyName)
-          currencyStateUpdate(currencyToOperate.copy(currencySellName = currencyName))
         },
           onClick = {
             isDropDownExpanded.value = false
             itemPosition.value = index
+            val newState = if (currencyToOperate.isSell) {
+              currencyToOperate.copy(currencySellName = currencyName)
+            } else {
+              currencyToOperate.copy(currencyReceiveName = currencyName)
+            }
+            currencyStateUpdate(newState)
           })
       }
     }

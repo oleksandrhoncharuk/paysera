@@ -8,9 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.paysera_core.repository.CurrencyExchangeRepository
 import com.example.paysera_database.model.Currency
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,9 +27,22 @@ class MainViewModel @Inject constructor(
   val receivedAmountOfSelectedCurrency: LiveData<Double>
     get() = mReceivedAmountOfSelectedCurrency
 
+  private val mSellCurrencyAmountLeft: MutableLiveData<Double> = MutableLiveData()
+  val sellCurrencyAmountLeft: LiveData<Double>
+    get() = mSellCurrencyAmountLeft
+
+  private val mSellCurrencyFee: MutableLiveData<Double> = MutableLiveData()
+  val sellCurrencyFee: LiveData<Double>
+    get() = mSellCurrencyFee
+
+  private val mIsLoadingAfterSubmit: MutableLiveData<Boolean> = MutableLiveData(false)
+  val isLoadingAfterSubmit: LiveData<Boolean>
+    get() = mIsLoadingAfterSubmit
+
   fun getCurrencyExchangeRatesFromDatabase() {
     viewModelScope.launch {
-      mCurrencyBalanceDBLiveData.value = repository.getCurrencyListFromDatabase()
+      val currencyRates = repository.getCurrencyListFromDatabase()
+      mCurrencyBalanceDBLiveData.value = currencyRates
     }
   }
 
@@ -47,7 +57,7 @@ class MainViewModel @Inject constructor(
   }
 
   suspend fun getCurrencyRateByName(currencyName: String): Double {
-    return repository.currencyRatesFlow.filterNotNull().map { it.rates[currencyName] }.single() ?: 0.0
+    return getCurrencyByName(currencyName)?.exchangeRate ?: 0.0
   }
 
   suspend fun receiveCurrencyExchangeAmount(currencyNameToSell: String, currencyNameToBuy: String, amountToSell: Double): Double {
@@ -55,8 +65,10 @@ class MainViewModel @Inject constructor(
     return receiveCurrencyAmountFromEuro(currencyNameToBuy, euroAmountOfCurrencyToSell)
   }
 
-  fun loadReceiveAmountOfSelectedCurrency(currencyNameToSell: String, currencyNameToBuy: String, amount: Double) {
+  fun updateAmountOfSelectedCurrencies(currencyNameToSell: String, currencyNameToBuy: String, amount: Double) {
     viewModelScope.launch {
+      val sellAmountLeft = getCurrencyByName(currencyNameToSell)?.amount ?: 0.0
+      mSellCurrencyAmountLeft.value = sellAmountLeft
       val receive = receiveCurrencyExchangeAmount(currencyNameToSell, currencyNameToBuy, amount)
       mReceivedAmountOfSelectedCurrency.value = receive
     }
@@ -64,8 +76,9 @@ class MainViewModel @Inject constructor(
 
   fun submitCurrencyExchange(sellCurrency: Currency, sellAmount: Double, receiveCurrencyName: String) {
     viewModelScope.launch {
+      mIsLoadingAfterSubmit.value = true
       if (sellCurrency.amount >= sellAmount) {
-        val sellCurrencyAmount = sellCurrency.amount - sellAmount
+        val sellCurrencyAmountLeft = sellCurrency.amount - sellAmount
         val receiveCurrencyAmount = receiveCurrencyExchangeAmount(
           sellCurrency.currencyName,
           receiveCurrencyName,
@@ -73,14 +86,27 @@ class MainViewModel @Inject constructor(
         )
 
         val receiveCurrency = getCurrencyByName(receiveCurrencyName)
-        updateCurrencyExchange(sellCurrency.copy(amount = sellCurrencyAmount))
         updateCurrencyExchange(
-          receiveCurrency?.copy(
-            amount = receiveCurrency.amount + receiveCurrencyAmount,
-            exchangeCount = receiveCurrency.exchangeCount + 1
+          sellCurrency.copy(
+            amount = sellCurrencyAmountLeft,
+            exchangeCount = sellCurrency.exchangeCount + 1
           )
         )
+        updateCurrencyExchange(
+          receiveCurrency?.copy(
+            amount = receiveCurrency.amount + receiveCurrencyAmount
+          )
+        )
+        getCurrencyExchangeRatesFromDatabase()
       }
+    }
+    mIsLoadingAfterSubmit.value = false
+  }
+
+  fun getFeeForSoldCurrency(currencyName: String, soldAmount: Double) {
+    viewModelScope.launch {
+      val fee = repository.getSoldCurrencyFee(currencyName, soldAmount)
+      mSellCurrencyFee.value = fee
     }
   }
 

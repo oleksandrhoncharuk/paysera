@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,14 +17,13 @@ import com.example.paysera_core.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
   val isLoading = remember { mutableStateOf(true) }
 
   LaunchedEffect(Unit) {
     // Simulate loading delay
-    delay(10000)
+    delay(500)
     // Call your function to get currency exchange rates
     viewModel.getCurrencyExchangeRatesFromDatabase()
     // Set loading to false after the data is fetched

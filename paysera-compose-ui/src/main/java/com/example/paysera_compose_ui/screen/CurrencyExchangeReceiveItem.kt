@@ -26,7 +26,7 @@ fun CurrencyExchangeReceiveItem(
   receiveAmount: Double?,
   currencyStateUpdate: (CurrencyState) -> Unit
 ) {
-  val operationAmountText = "+${receiveAmount ?: 0.0}"
+  val operationAmountText = "+$%.${2}f".format(receiveAmount ?: 0.00)
 
   Row(
     modifier = Modifier

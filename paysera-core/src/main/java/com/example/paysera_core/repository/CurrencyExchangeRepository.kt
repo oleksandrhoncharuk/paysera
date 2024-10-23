@@ -1,6 +1,8 @@
 package com.example.paysera_core.repository
 
+import android.util.Log
 import com.example.paysera_database.db.DatabaseRepositoryImpl
+import com.example.paysera_database.isFeeFree
 import com.example.paysera_database.mapToCurrency
 import com.example.paysera_database.mapToCurrencyList
 import com.example.paysera_database.mapToDomain
@@ -43,7 +45,7 @@ class CurrencyExchangeRepository @Inject constructor(
   private suspend fun updateDatabase(currencyRates: CurrencyRate?) {
     if (currencyRates == null) return
 
-    withContext(Dispatchers.Default) {
+    withContext(Dispatchers.IO) {
       val currencyList = currencyRates.rates.map { Currency(it.key, it.value) }
       currencyList.forEach {
         val currency = getCurrencyByName(it.currencyName)
@@ -58,13 +60,28 @@ class CurrencyExchangeRepository @Inject constructor(
 
   suspend fun getCurrencyListFromDatabase(): List<Currency> {
     return withContext(Dispatchers.IO) {
-      database.currencyExchangeDao().getAllCurrencies().mapToCurrencyList()
+      val databaseList = database.currencyExchangeDao().getAllCurrencies()
+      databaseList.forEach {
+        Log.d("CurrencyExchangeRepository", "Currency: ${it.currencyName}, RATE: ${it.exchangeRate}")
+      }
+      databaseList.mapToCurrencyList()
     }
   }
 
   suspend fun getCurrencyByName(currencyName: String): Currency? {
     return withContext(Dispatchers.IO) {
       database.currencyExchangeDao().getCurrencyByName(currencyName)?.mapToCurrency() ?: return@withContext null
+    }
+  }
+
+  suspend fun getSoldCurrencyFee(currencyName: String, soldAmount: Double): Double {
+    return withContext(Dispatchers.IO) {
+      val currency = getCurrencyByName(currencyName) ?: return@withContext 0.0
+      return@withContext if (currency.isFeeFree()) {
+        0.0
+      } else {
+        soldAmount * 0.007
+      }
     }
   }
 

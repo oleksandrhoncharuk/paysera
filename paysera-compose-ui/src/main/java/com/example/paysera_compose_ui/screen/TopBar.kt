@@ -18,7 +18,7 @@ import com.example.paysera_compose_ui.theme.Blue19
 @Composable
 fun TopBar() {
   CenterAlignedTopAppBar(
-    colors = TopAppBarDefaults.smallTopAppBarColors(
+    colors = TopAppBarDefaults.topAppBarColors(
       containerColor = Blue19,
       titleContentColor = Color.White,
     ),

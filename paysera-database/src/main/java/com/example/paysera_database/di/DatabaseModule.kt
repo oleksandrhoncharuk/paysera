@@ -18,8 +18,7 @@ object DatabaseModule {
   @Singleton
   fun provideDatabaseRepository(
     @ApplicationContext context: Context,
-    @ApplicationScope applicationScope: CoroutineScope
   ): DatabaseRepositoryImpl {
-    return DatabaseRepositoryImpl(context, applicationScope)
+    return DatabaseRepositoryImpl(context)
   }
 }

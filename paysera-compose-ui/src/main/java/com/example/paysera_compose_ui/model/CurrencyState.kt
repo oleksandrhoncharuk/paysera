@@ -11,6 +11,7 @@ package com.example.paysera_compose_ui.model
  * @param isSell the flag that indicates if the user is selling the currency
  * @param receiveAmount the amount of currency that user will receive
  * @param exchangeCount the count of the exchange that was made with this currency
+ * @param fee the fee that is applied to the exchange
  */
 data class CurrencyState(
   val currencySellName: String = "EUR",
@@ -20,5 +21,6 @@ data class CurrencyState(
   val sellAmount: String = "0.0",
   val isSell: Boolean = true,
   val receiveAmount: Double = 0.0,
-  val exchangeCount: Int = 0
+  val exchangeCount: Int = 0,
+  val fee: Double = 0.0
 )

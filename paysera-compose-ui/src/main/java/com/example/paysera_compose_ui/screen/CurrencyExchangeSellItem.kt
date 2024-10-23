@@ -58,7 +58,10 @@ fun CurrencyExchangeSellItem(
     ) {
       BasicTextField(
         value = currencyState.sellAmount,
-        onValueChange = { newText: String -> currencyStateUpdate(currencyState.copy(sellAmount = newText)) },
+        onValueChange = { newText: String ->
+          val newState = currencyState.copy(sellAmount = newText)
+          currencyStateUpdate(newState)
+        },
         modifier = Modifier
           .padding(0.dp)
           .width(80.dp),
