@@ -7,14 +7,12 @@ import com.example.paysera_database.mapToCurrency
 import com.example.paysera_database.mapToCurrencyList
 import com.example.paysera_database.mapToDomain
 import com.example.paysera_database.model.Currency
+import com.example.paysera_database.updateWithCurrency
 import com.example.paysera_network.mapToCurrencyRate
 import com.example.paysera_network.models.CurrencyRate
 import com.example.paysera_network.service.CurrencyExchangeInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -25,9 +23,6 @@ class CurrencyExchangeRepository @Inject constructor(
   private val networkApi: CurrencyExchangeInterface
 ) {
 
-  private val _currencyRatesFlow = MutableSharedFlow<CurrencyRate?>()
-  val currencyRatesFlow: SharedFlow<CurrencyRate?> = _currencyRatesFlow.asSharedFlow()
-
   private fun getCurrencyExchangeRates(): Flow<CurrencyRate?> = flow {
     val response = networkApi.getCurrencyExchange()?.mapToCurrencyRate()
     emit(response)
@@ -37,7 +32,6 @@ class CurrencyExchangeRepository @Inject constructor(
   suspend fun fetchCurrencyExchangeRates() {
     val currencyRates = getCurrencyExchangeRates()
     currencyRates.collect {
-      _currencyRatesFlow.emit(it)
       updateDatabase(it)
     }
   }
@@ -46,11 +40,12 @@ class CurrencyExchangeRepository @Inject constructor(
     if (currencyRates == null) return
 
     withContext(Dispatchers.IO) {
-      val currencyList = currencyRates.rates.map { Currency(it.key, it.value) }
+      val currencyList = currencyRates.rates.map { Currency(currencyName = it.key, exchangeRate = it.value) }
       currencyList.forEach {
+        Log.d("CurrencyExchangeRepository", "Update databse from network: ${it.currencyName}")
         val currency = getCurrencyByName(it.currencyName)
         if (currency != null) {
-          updateCurrency(it)
+          updateCurrencyExchangeFrom(it)
         } else {
           insertCurrency(it)
         }
@@ -77,6 +72,7 @@ class CurrencyExchangeRepository @Inject constructor(
   suspend fun getSoldCurrencyFee(currencyName: String, soldAmount: Double): Double {
     return withContext(Dispatchers.IO) {
       val currency = getCurrencyByName(currencyName) ?: return@withContext 0.0
+      Log.d("CurrencyExchangeRepository", "exchange count: ${currency.exchangeCount}")
       return@withContext if (currency.isFeeFree()) {
         0.0
       } else {
@@ -87,13 +83,17 @@ class CurrencyExchangeRepository @Inject constructor(
 
   suspend fun insertCurrency(currency: Currency) {
     withContext(Dispatchers.IO) {
+      Log.d("CurrencyExchangeRepository", "Inserting currency: ${currency.currencyName}")
       database.currencyExchangeDao().insert(currency.mapToDomain())
     }
   }
 
-  suspend fun updateCurrency(currency: Currency) {
+  suspend fun updateCurrencyExchangeFrom(currency: Currency) {
     withContext(Dispatchers.IO) {
-      database.currencyExchangeDao().update(currency.mapToDomain())
+      Log.d("CurrencyExchangeRepository", "Update currency: ${currency.currencyName}")
+      val domainCurrency = database.currencyExchangeDao().getCurrencyByName(currency.currencyName) ?: return@withContext
+      val updatedCurrencyExchange = domainCurrency.updateWithCurrency(currency)
+      database.currencyExchangeDao().update(updatedCurrencyExchange)
     }
   }
 

@@ -3,11 +3,13 @@ package com.example.paysera_compose_ui.screen
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,32 +21,17 @@ import kotlinx.coroutines.delay
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(viewModel: MainViewModel = hiltViewModel()) {
-  val isLoading = remember { mutableStateOf(true) }
+  val isLoading = viewModel.exchangeRatesLoading.observeAsState(true)
 
   LaunchedEffect(Unit) {
-    // Simulate loading delay
-    delay(500)
-    // Call your function to get currency exchange rates
+    // Call function to get currency exchange rates
     viewModel.getCurrencyExchangeRatesFromDatabase()
-    // Set loading to false after the data is fetched
-    isLoading.value = false
   }
 
   // Show loading indicator if data is still loading
   if (isLoading.value) {
     CircularProgressIndicator()
   } else {
-    Scaffold(
-      topBar = { TopBar() }
-    ) { paddingValues ->
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(paddingValues)
-          .padding(start = 15.dp)
-      ) {
-        CurrencyExchangeContent(viewModel)
-      }
-    }
+    CurrencyExchangeContent(viewModel)
   }
 }

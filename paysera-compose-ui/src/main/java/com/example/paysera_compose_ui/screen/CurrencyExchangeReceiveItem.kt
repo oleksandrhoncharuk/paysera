@@ -17,17 +17,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
+import com.example.paysera_compose_ui.model.CurrencyStateItem
+import com.example.paysera_compose_ui.model.getSortedBalanceList
+import com.example.paysera_compose_ui.model.isNullOrEmpty
 import com.example.paysera_compose_ui.theme.LightGreen
 
 @Composable
 fun CurrencyExchangeReceiveItem(
   currencyState: CurrencyState,
-  currencyList: List<String>?,
-  receiveAmount: Double?,
-  currencyStateUpdate: (CurrencyState) -> Unit
+  currencyStateUpdate: (CurrencyStateItem?) -> Unit
 ) {
-  val operationAmountText = "+$%.${2}f".format(receiveAmount ?: 0.00)
-
   Row(
     modifier = Modifier
       .fillMaxWidth(),
@@ -55,18 +54,18 @@ fun CurrencyExchangeReceiveItem(
       horizontalArrangement = Arrangement.spacedBy(0.dp)
     ) {
       Text(
-        text = operationAmountText,
+        text = currencyState.receiveStateItem?.operationalAmount?.toString() ?: "0.00",
         color = LightGreen,
         fontSize = 18.sp,
         modifier = Modifier.padding(end = 10.dp),
         fontWeight = FontWeight.Bold
       )
 
-      DropDownCurrency(
-        currencyList = currencyList ?: listOf("USD", "EUR"),
-        currencyToOperate = currencyState,
-        currencyStateUpdate
-      )
+        DropDownCurrency(
+          balance = currencyState.getSortedBalanceList(),
+          currencyStateItem = currencyState.receiveStateItem!!,
+          currencyStateUpdate = currencyStateUpdate
+        )
     }
   }
 }

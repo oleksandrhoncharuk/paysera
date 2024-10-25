@@ -28,6 +28,7 @@ abstract class CurrencyDatabase : RoomDatabase() {
           CurrencyDatabase::class.java,
           DATABASE_NAME
         )
+//          .fallbackToDestructiveMigrationFrom(1)
           .createFromAsset("databases/currency_exchange_db.db")
           .build()
         INSTANCE = instance

@@ -11,4 +11,5 @@
   <string name="dialog_title">Currency converted</string>
   <string name="dialog_message">You have converted %1$s %2$s to %3$s %4$s. Commission Fee: %5$s %2$s</string>
   <string name="dialog_done">Done</string>
+  <string name="similar_currency_operation_text">Chose different receive currency</string>
 </resources>

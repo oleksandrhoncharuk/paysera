@@ -13,11 +13,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
-import com.example.paysera_database.model.Currency
+import com.example.paysera_compose_ui.model.CurrencyState
+import com.example.paysera_compose_ui.model.isBalanceNullOrEmpty
 
 @Composable
-fun BalanceRow(balance: List<Currency>?) {
-  if (balance.isNullOrEmpty()) {
+fun BalanceRow(state: CurrencyState?) {
+  if (state == null || state.isBalanceNullOrEmpty()) {
     Text(
       text = stringResource(R.string.no_balance_available),
       color = Color.Gray,
@@ -29,9 +30,9 @@ fun BalanceRow(balance: List<Currency>?) {
       horizontalArrangement = Arrangement.spacedBy(40.dp),
       modifier = Modifier.padding(top = 15.dp)
     ) {
-      items(balance) { currency ->
+      items(state.balance!!.entries.toList()) { currency ->
         Text(
-          text = "${currency.amount} ${currency.currencyName}",
+          text = "${currency.key} ${currency.value}",
           color = Color.Black,
           fontSize = 20.sp,
           fontWeight = FontWeight.Bold
