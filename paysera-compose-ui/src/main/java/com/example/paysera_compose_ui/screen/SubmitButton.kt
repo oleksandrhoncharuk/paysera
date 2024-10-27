@@ -29,53 +29,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
-import com.example.paysera_compose_ui.mapToCurrency
 import com.example.paysera_compose_ui.mapToCurrencyDataItem
 import com.example.paysera_compose_ui.model.CurrencyState
-import com.example.paysera_compose_ui.model.CurrencyStateItem
 import com.example.paysera_compose_ui.model.isNullOrEmpty
 import com.example.paysera_core.viewmodel.MainViewModel
 
 @Composable
 fun SubmitButton(
-  viewModel: MainViewModel,
-  currencyState: CurrencyState?
+  onSubmitClick: () -> Unit
 ) {
-  if (currencyState.isNullOrEmpty()) return
-  var showDialog by remember { mutableStateOf(false) }
-  val context = LocalContext.current
-  val toastMessage = stringResource(R.string.similar_currency_operation_text)
-
-  val isLoading by viewModel.isLoadingAfterSubmit.observeAsState(false)
-  val sellCurrencyItem = currencyState?.sellStateItem
-  val receiveCurrencyItem = currencyState?.receiveStateItem
-
-  Box {
-    if (isLoading) {
-      // Center the CircularProgressIndicator
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .background(Color(0x80000000), shape = RoundedCornerShape(4.dp)) // Optional: dim background
-          .wrapContentSize(Alignment.Center)
-      ) {
-        CircularProgressIndicator()
-      }
-    }
     Button(
-      onClick = {
-        if (sellCurrencyItem?.currencyName.equals(receiveCurrencyItem?.currencyName, ignoreCase = true)) {
-          Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
-          return@Button
-        }
-        viewModel.submitCurrencyExchange(
-          sellCurrency = sellCurrencyItem?.mapToCurrencyDataItem(),
-          receiveCurrency = receiveCurrencyItem?.mapToCurrencyDataItem(),
-        )
-        if (!isLoading) {
-          showDialog = true
-        }
-      },
+      onClick = { onSubmitClick() },
       modifier = Modifier
         .padding(16.dp)
         .fillMaxWidth()
@@ -88,41 +52,4 @@ fun SubmitButton(
         fontWeight = FontWeight.SemiBold
       )
     }
-
-    if (showDialog) {
-      AlertDialog(
-        onDismissRequest = {
-          // Dismiss the dialog when the user taps outside the dialog or the back button
-          showDialog = false
-        },
-        title = {
-          Text(text = stringResource(R.string.dialog_title))
-        },
-        text = {
-          Text(
-            text = stringResource(
-              R.string.dialog_message,
-              sellCurrencyItem!!.operationalAmount,
-              sellCurrencyItem.currencyName,
-              receiveCurrencyItem!!.operationalAmount,
-              receiveCurrencyItem.currencyName,
-              sellCurrencyItem.fee
-            )
-          )
-        },
-        confirmButton = {
-          Button(
-            onClick = {
-              showDialog = false
-            },
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(60.dp)
-          ) {
-            Text(text = stringResource(R.string.dialog_done))
-          }
-        }
-      )
-    }
   }
-}

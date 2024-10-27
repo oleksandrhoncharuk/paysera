@@ -14,5 +14,6 @@ data class CurrencyDataItem(
   val exchangeRate: Double? = null,
   val operationalAmount: Double? = null,
   val amount: Double? = null,
-  val exchangeCount: Int? = null
+  val exchangeCount: Int? = null,
+  val fee: Double = 0.0
 )

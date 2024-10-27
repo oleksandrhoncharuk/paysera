@@ -53,12 +53,9 @@ class CurrencyExchangeRepository @Inject constructor(
     }
   }
 
-  suspend fun getCurrencyListFromDatabase(): List<Currency> {
+  suspend fun getCurrenciesFromDatabase(): List<Currency> {
     return withContext(Dispatchers.IO) {
       val databaseList = database.currencyExchangeDao().getAllCurrencies()
-      databaseList.forEach {
-        Log.d("CurrencyExchangeRepository", "Currency: ${it.currencyName}, RATE: ${it.exchangeRate}")
-      }
       databaseList.mapToCurrencyList()
     }
   }

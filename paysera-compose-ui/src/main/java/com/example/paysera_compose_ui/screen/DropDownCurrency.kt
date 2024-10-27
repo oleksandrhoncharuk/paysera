@@ -33,8 +33,8 @@ fun DropDownCurrency(
     mutableStateOf(false)
   }
 
-  val itemPosition = rememberSaveable {
-    mutableIntStateOf(0)
+  val itemCurrencyName = rememberSaveable {
+    mutableStateOf(balance[0])
   }
 
   Box {
@@ -45,8 +45,7 @@ fun DropDownCurrency(
       verticalAlignment = Alignment.CenterVertically
     ) {
       if (balance.isNotEmpty()) {
-        val currencyName = balance[itemPosition.intValue]
-        Text(currencyName, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(0.dp))
+        Text(itemCurrencyName.value, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(0.dp))
         Image(
           painter = painterResource(id = R.drawable.baseline_keyboard_arrow_down_24),
           contentDescription = "DropDown Icon"
@@ -58,13 +57,13 @@ fun DropDownCurrency(
       onDismissRequest = {
         isDropDownExpanded.value = false
       }) {
-      balance.forEachIndexed { index, currencyName ->
+      balance.forEach { currencyName ->
         DropdownMenuItem(text = {
           Text(text = currencyName)
         },
           onClick = {
             isDropDownExpanded.value = false
-            itemPosition.intValue = index
+            itemCurrencyName.value = currencyName
             currencyStateUpdate(currencyStateItem.copy(currencyName = currencyName))
           }
         )

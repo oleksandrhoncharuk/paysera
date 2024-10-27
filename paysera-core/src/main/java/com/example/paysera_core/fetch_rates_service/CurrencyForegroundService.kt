@@ -34,9 +34,9 @@ class CurrencyForegroundService: Service() {
     // Start periodic network call using repository
     serviceScope.launch {
       while (true) {
-        repository.fetchCurrencyExchangeRates()
-        // Do something with the rates
-        delay(5000) // 5 seconds delay
+//        repository.fetchCurrencyExchangeRates()
+//        // Do something with the rates
+//        delay(5000) // 5 seconds delay
       }
     }
 

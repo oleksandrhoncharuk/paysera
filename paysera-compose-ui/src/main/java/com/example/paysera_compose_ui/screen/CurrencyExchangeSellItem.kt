@@ -12,6 +12,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
 import com.example.paysera_compose_ui.model.CurrencyStateItem
+import com.example.paysera_compose_ui.model.CurrencyStateItemSaver
 import com.example.paysera_compose_ui.model.getSortedBalanceList
 
 @Composable
@@ -32,6 +35,11 @@ fun CurrencyExchangeSellItem(
   currencyState: CurrencyState,
   currencyStateUpdate: (CurrencyStateItem?) -> Unit
 ) {
+
+  val sellItemText = rememberSaveable {
+    mutableStateOf(currencyState.sellStateItem?.operationalAmount ?: "0.00")
+  }
+
   if (currencyState.sellStateItem == null) {
     CircularProgressIndicator()
   } else {
@@ -63,10 +71,10 @@ fun CurrencyExchangeSellItem(
         horizontalArrangement = Arrangement.Start
       ) {
         BasicTextField(
-          value = currencyState.sellStateItem.operationalAmount.toString() ?: "",
+          value = sellItemText.value,
           onValueChange = { newText: String ->
-            val newState = currencyState.sellStateItem.copy(operationalAmount = newText.toDouble())
-            currencyStateUpdate(newState)
+            sellItemText.value = newText
+            currencyStateUpdate(currencyState.sellStateItem.copy(operationalAmount = newText))
           },
           modifier = Modifier
             .weight(1f)

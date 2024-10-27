@@ -23,28 +23,22 @@ class MainViewModel @Inject constructor(
   private val repository: CurrencyExchangeRepository
 ) : ViewModel() {
 
-  private val mCurrencyBalanceDBLiveData: MutableLiveData<List<CurrencyDataItem>> = MutableLiveData()
-  val currencyBalanceDBLiveData: LiveData<List<CurrencyDataItem>>
-    get() = mCurrencyBalanceDBLiveData
-
-  private val mExchangeRatesLoading: MutableLiveData<Boolean> = MutableLiveData(false)
-  val exchangeRatesLoading: LiveData<Boolean>
-    get() = mExchangeRatesLoading
-
-  private val receiveCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
+  private val currencyBalanceDBLiveData: MutableLiveData<List<CurrencyDataItem>> = MutableLiveData()
   private val sellCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
-
-  private val mReceivedAmountOfSelectedCurrency: MutableLiveData<Double> = MutableLiveData()
-  val receivedAmountOfSelectedCurrency: LiveData<Double>
-    get() = mReceivedAmountOfSelectedCurrency
+  private val sellCurrencyFee: MutableLiveData<Double> = MutableLiveData()
+  private val receiveCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
 
   private val mSellCurrencyAmountLeft: MutableLiveData<Double> = MutableLiveData()
   val sellCurrencyAmountLeft: LiveData<Double>
     get() = mSellCurrencyAmountLeft
 
-  private val mSellCurrencyFee: MutableLiveData<Double> = MutableLiveData()
-  val sellCurrencyFee: LiveData<Double>
-    get() = mSellCurrencyFee
+  private val mReceivedAmountOfSelectedCurrency: MutableLiveData<Double> = MutableLiveData()
+  val receivedAmountOfSelectedCurrency: LiveData<Double>
+    get() = mReceivedAmountOfSelectedCurrency
+
+  private val mExchangeRatesLoading: MutableLiveData<Boolean> = MutableLiveData(false)
+  val exchangeRatesLoading: LiveData<Boolean>
+    get() = mExchangeRatesLoading
 
   private val mIsLoadingAfterSubmit: MutableLiveData<Boolean> = MutableLiveData(false)
   val isLoadingAfterSubmit: LiveData<Boolean>
@@ -60,15 +54,10 @@ class MainViewModel @Inject constructor(
       var sellCurrency: CurrencyDataItem? = null
       var receiveCurrency: CurrencyDataItem? = null
 
-      addSource(mCurrencyBalanceDBLiveData) { newCurrencies ->
+      addSource(currencyBalanceDBLiveData) { newCurrencies ->
         currencies = newCurrencies
         if (sellCurrency == null) sellCurrency = newCurrencies.first()
         if (receiveCurrency == null) receiveCurrency = newCurrencies.first()
-        value = combine(currencies, sellCurrency, receiveCurrency)
-      }
-
-      addSource(sellCurrencyLiveData) { newSellCurrency ->
-        sellCurrency = newSellCurrency
         value = combine(currencies, sellCurrency, receiveCurrency)
       }
 
@@ -76,6 +65,41 @@ class MainViewModel @Inject constructor(
         receiveCurrency = newReceiveCurrency
         value = combine(currencies, sellCurrency, receiveCurrency)
       }
+
+      addSource(sellCurrencyLiveData) { newSellCurrency ->
+        sellCurrency = newSellCurrency
+        updateReceiveCurrencyAmount(newSellCurrency, receiveCurrency)
+        value = combine(currencies, sellCurrency, receiveCurrency)
+      }
+
+
+      addSource(mSellCurrencyAmountLeft) { newSellAmountLeft ->
+        value = combine(currencies, sellCurrency, receiveCurrency, updatedSellAmount = newSellAmountLeft)
+      }
+
+      addSource(mReceivedAmountOfSelectedCurrency) { newReceiveAmount ->
+        value = combine(currencies, sellCurrency, receiveCurrency, updatedReceiveAmount = newReceiveAmount)
+      }
+
+      addSource(sellCurrencyFee) { newFee ->
+        value = combine(currencies, sellCurrency, receiveCurrency, fee = newFee)
+      }
+    }
+  }
+
+  private fun updateCurrencyDataItemFromDB(newCurrencyItem: CurrencyDataItem) {
+    viewModelScope.launch {
+      if (newCurrencyItem.currencyName == null) return@launch
+      val sellCurrencyFromDB = getCurrencyByName(newCurrencyItem.currencyName)
+      if (sellCurrencyFromDB == null) {
+        sellCurrencyLiveData.value = newCurrencyItem
+        return@launch
+      }
+      sellCurrencyLiveData.value = newCurrencyItem.copy(
+        exchangeRate = sellCurrencyFromDB.exchangeRate,
+        exchangeCount = sellCurrencyFromDB.exchangeCount,
+        fee = sellCurrencyFromDB.fee
+      )
     }
   }
 
@@ -87,35 +111,51 @@ class MainViewModel @Inject constructor(
   }
 
   fun updateReceiveCurrency(receiveCurrency: CurrencyDataItem) {
-    receiveCurrencyLiveData.value = receiveCurrency
+    viewModelScope.launch {
+      if (receiveCurrency.currencyName == null) return@launch
+      updateReceiveCurrencyAmount(sellCurrencyLiveData.value!!, receiveCurrency)
+    }
   }
 
   fun updateSellCurrency(sellCurrency: CurrencyDataItem) {
-    sellCurrencyLiveData.value = sellCurrency
+    updateCurrencyDataItemFromDB(sellCurrency)
   }
 
-  fun updateAmountOfSelectedCurrencies(sellCurrency: CurrencyDataItem, receiveCurrency: CurrencyDataItem) {
-    if (isCurrencyDataFieldsNotValid(sellCurrency) || isCurrencyDataFieldsNotValid(receiveCurrency)) return
+  private fun updateAmountOfSelectedCurrencies(currenciesData: Pair<CurrencyDataItem?, CurrencyDataItem?>) {
+    val (sellCurrency, receiveCurrency) = currenciesData
+    if (sellCurrency == null || receiveCurrency == null || isCurrencyDataFieldsNotValid(sellCurrency) || isCurrencyDataFieldsNotValid(
+        receiveCurrency
+      )
+    ) return
     viewModelScope.launch {
       val sellAmountLeft = getCurrencyByName(sellCurrency.currencyName!!)?.amount ?: 0.00
+      sellCurrencyLiveData.value = sellCurrency.copy(amount = sellAmountLeft.roundAmount())
       mSellCurrencyAmountLeft.value = sellAmountLeft.roundAmount()
+
       val receive = receiveCurrencyExchangeAmount(sellCurrency, receiveCurrency)
+      receiveCurrencyLiveData.value = receiveCurrency.copy(operationalAmount = receive.roundAmount())
       mReceivedAmountOfSelectedCurrency.value = receive.roundAmount()
+    }
+  }
+
+  private fun updateReceiveCurrencyAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?) {
+    val sellCurrencyName = sellCurrency?.currencyName
+
+    receiveCurrency?.let {
+      viewModelScope.launch {
+        val sellAmountLeft = sellCurrencyName?.let { getCurrencyByName(it)?.amount } ?: 0.00
+        val receive = receiveCurrencyExchangeAmount(sellCurrency?.copy(amount = sellAmountLeft.roundAmount()), receiveCurrency)
+        receiveCurrencyLiveData.value = receiveCurrency.copy(operationalAmount = receive.roundAmount())
+      }
     }
   }
 
   fun submitCurrencyExchange(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?) {
     if (sellCurrency == null || receiveCurrency == null) return
     viewModelScope.launch {
-      Log.d("MainViewModel", "submitCurrencyExchange")
-      Log.d("MainViewModel",
-        "Currency to sell: ${sellCurrency.currencyName}, " +
-            "amount: ${sellCurrency.operationalAmount}, receive currency: ${receiveCurrency.currencyName}, " +
-            "exchange count: ${sellCurrency.exchangeCount}")
       mIsLoadingAfterSubmit.value = true
       if (isOperationPossible(sellCurrency, receiveCurrency)) {
         val sellCurrencyAmountLeft = sellCurrency.amount!! - sellCurrency.operationalAmount!!
-        Log.d("MainViewModel", "${sellCurrency.currencyName} amount left: $sellCurrencyAmountLeft")
         val receiveCurrencyAmount = receiveCurrencyExchangeAmount(
           sellCurrency,
           receiveCurrency
@@ -124,25 +164,29 @@ class MainViewModel @Inject constructor(
 
         Log.d("MainViewModel", "start updateCurrencyExchange for ${sellCurrency.currencyName}")
 
-        updateCurrencyExchange(
-          sellCurrency.copy(
-            amount = sellCurrencyAmountLeft,
-            exchangeCount = sellCurrency.exchangeCount!! + 1
-          )
+        val updatedSellCurrency = sellCurrency.copy(
+          amount = sellCurrencyAmountLeft,
+          exchangeCount = sellCurrency.exchangeCount!! + 1
         )
-        Log.d("MainViewModel", "start updateCurrencyExchange for ${receiveCurrency.currencyName}")
-        updateCurrencyExchange(
-          receiveCurrency.copy(
-            amount = receiveCurrency.amount!! + receiveCurrencyAmount
-          )
+        updateCurrencyExchange(updatedSellCurrency)
+        sellCurrencyLiveData.value = updatedSellCurrency
+
+        val updatedReceiveCurrency = receiveCurrency.copy(
+          amount = receiveCurrency.amount!! + receiveCurrencyAmount
         )
-        Log.d("MainViewModel", "getting fee for ${sellCurrency.currencyName}")
-        getFeeForSoldCurrency(sellCurrency.currencyName!!, sellCurrency.operationalAmount)
+        updateCurrencyExchange(updatedReceiveCurrency)
+        receiveCurrencyLiveData.value = updatedReceiveCurrency
+
+        updateFeeFor(sellCurrency, sellCurrency.operationalAmount)
         Log.d("MainViewModel", "updateCurrencyExchangeRatesFromDatabase")
-        updateCurrencyExchangeRatesFromDatabase()
       }
     }
     mIsLoadingAfterSubmit.value = false
+  }
+
+  override fun onCleared() {
+    super.onCleared()
+//    updateCurrentCurrencySelection.removeObserver(updateCurrentCurrencySelectionObserver)
   }
 
   private fun isOperationPossible(sellCurrency: CurrencyDataItem, receiveCurrency: CurrencyDataItem): Boolean {
@@ -162,8 +206,8 @@ class MainViewModel @Inject constructor(
   }
 
   private suspend fun updateCurrencyExchangeRatesFromDatabase() {
-    val currencyRates = repository.getCurrencyListFromDatabase()
-    mCurrencyBalanceDBLiveData.value = currencyRates.mapToCurrencyDataItemList().let { currencyDataItems ->
+    val currencies = repository.getCurrenciesFromDatabase()
+    currencyBalanceDBLiveData.value = currencies.mapToCurrencyDataItemList().let { currencyDataItems ->
       currencyDataItems.map { it.copy(amount = it.amount.roundAmount()) }
         .sortedWith(comparator = compareByDescending<CurrencyDataItem> { it.amount }
           .thenBy { it.currencyName })
@@ -177,14 +221,19 @@ class MainViewModel @Inject constructor(
     return amountToSell * currencyRate
   }
 
-  private suspend fun convertToEuro(currencyName: String?, amount: Double?): Double {
-    if (currencyName == null || amount == null) return 0.00
+  private suspend fun convertToEuro(currencyName: String?, operationalAmount: Double?): Double {
+    if (currencyName == null || operationalAmount == null) return 0.00
     val currencyRate = getCurrencyRateByName(currencyName)
-    return amount / currencyRate
+    return operationalAmount / currencyRate
   }
 
   private suspend fun getCurrencyRateByName(currencyName: String): Double {
-    return getCurrencyByName(currencyName)?.exchangeRate ?: 0.00
+    return getCurrencyItemFromDBBy(currencyName)?.exchangeRate ?: 0.00
+  }
+
+  private suspend fun getCurrencyItemFromDBBy(currencyName: String?): CurrencyDataItem? {
+    if (currencyName == null) return null
+    return getCurrencyByName(currencyName)
   }
 
   private suspend fun receiveCurrencyExchangeAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?): Double {
@@ -194,9 +243,12 @@ class MainViewModel @Inject constructor(
     return receiveCurrencyAmountFromEuro(receiveCurrency.currencyName, euroAmountOfCurrencyToSell)
   }
 
-  private suspend fun getFeeForSoldCurrency(currencyName: String, soldAmount: Double) {
-    val fee = repository.getSoldCurrencyFee(currencyName, soldAmount)
-    mSellCurrencyFee.value = fee
+  private suspend fun updateFeeFor(sellCurrency: CurrencyDataItem?, soldAmount: Double) {
+    sellCurrency?.let {
+      if (sellCurrency.currencyName == null) return
+      val fee = repository.getSoldCurrencyFee(sellCurrency.currencyName, soldAmount)
+      sellCurrencyLiveData.value = sellCurrency.copy(fee = fee)
+    }
   }
 
   private suspend fun getCurrencyByName(currencyName: String): CurrencyDataItem? {
