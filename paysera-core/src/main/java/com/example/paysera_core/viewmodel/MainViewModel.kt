@@ -5,6 +5,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.example.paysera_core.mapToCurrency
 import com.example.paysera_core.mapToCurrencyDataItem
@@ -23,18 +25,11 @@ class MainViewModel @Inject constructor(
   private val repository: CurrencyExchangeRepository
 ) : ViewModel() {
 
-  private val currencyBalanceDBLiveData: MutableLiveData<List<CurrencyDataItem>> = MutableLiveData()
-  private val sellCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
-  private val sellCurrencyFee: MutableLiveData<Double> = MutableLiveData()
-  private val receiveCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
+  private val mCurrencyBalanceDBLiveData = repository.getCurrencyExchangeRatesFromDatabase()
+    .asLiveData().map { it.mapToCurrencyDataItemList() }
 
-  private val mSellCurrencyAmountLeft: MutableLiveData<Double> = MutableLiveData()
-  val sellCurrencyAmountLeft: LiveData<Double>
-    get() = mSellCurrencyAmountLeft
-
-  private val mReceivedAmountOfSelectedCurrency: MutableLiveData<Double> = MutableLiveData()
-  val receivedAmountOfSelectedCurrency: LiveData<Double>
-    get() = mReceivedAmountOfSelectedCurrency
+  private val mSellCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
+  private val mReceiveCurrencyLiveData: MutableLiveData<CurrencyDataItem> = MutableLiveData()
 
   private val mExchangeRatesLoading: MutableLiveData<Boolean> = MutableLiveData(false)
   val exchangeRatesLoading: LiveData<Boolean>
@@ -54,100 +49,67 @@ class MainViewModel @Inject constructor(
       var sellCurrency: CurrencyDataItem? = null
       var receiveCurrency: CurrencyDataItem? = null
 
-      addSource(currencyBalanceDBLiveData) { newCurrencies ->
+      addSource(mCurrencyBalanceDBLiveData) { newCurrencies ->
         currencies = newCurrencies
         if (sellCurrency == null) sellCurrency = newCurrencies.first()
         if (receiveCurrency == null) receiveCurrency = newCurrencies.first()
+
         value = combine(currencies, sellCurrency, receiveCurrency)
       }
 
-      addSource(receiveCurrencyLiveData) { newReceiveCurrency ->
+      addSource(mReceiveCurrencyLiveData) { newReceiveCurrency ->
         receiveCurrency = newReceiveCurrency
         value = combine(currencies, sellCurrency, receiveCurrency)
       }
 
-      addSource(sellCurrencyLiveData) { newSellCurrency ->
+      addSource(mSellCurrencyLiveData) { newSellCurrency ->
         sellCurrency = newSellCurrency
-        updateReceiveCurrencyAmount(newSellCurrency, receiveCurrency)
-        value = combine(currencies, sellCurrency, receiveCurrency)
-      }
-
-
-      addSource(mSellCurrencyAmountLeft) { newSellAmountLeft ->
-        value = combine(currencies, sellCurrency, receiveCurrency, updatedSellAmount = newSellAmountLeft)
-      }
-
-      addSource(mReceivedAmountOfSelectedCurrency) { newReceiveAmount ->
-        value = combine(currencies, sellCurrency, receiveCurrency, updatedReceiveAmount = newReceiveAmount)
-      }
-
-      addSource(sellCurrencyFee) { newFee ->
-        value = combine(currencies, sellCurrency, receiveCurrency, fee = newFee)
+        value = combine(currencies, newSellCurrency, sellCurrency)
       }
     }
   }
 
-  private fun updateCurrencyDataItemFromDB(newCurrencyItem: CurrencyDataItem) {
+  private fun updateSellCurrencyDataItemFromDB(newSellCurrencyItem: CurrencyDataItem, newReceiveCurrencyItem: CurrencyDataItem?) {
     viewModelScope.launch {
-      if (newCurrencyItem.currencyName == null) return@launch
-      val sellCurrencyFromDB = getCurrencyByName(newCurrencyItem.currencyName)
-      if (sellCurrencyFromDB == null) {
-        sellCurrencyLiveData.value = newCurrencyItem
-        return@launch
-      }
-      sellCurrencyLiveData.value = newCurrencyItem.copy(
-        exchangeRate = sellCurrencyFromDB.exchangeRate,
-        exchangeCount = sellCurrencyFromDB.exchangeCount,
-        fee = sellCurrencyFromDB.fee
+      val sellCurrencyFromDB = getCurrencyByName(newSellCurrencyItem.currencyName)
+      val updatedSellCurrency = sellCurrencyFromDB?.let {
+        newSellCurrencyItem.copy(
+          amount = sellCurrencyFromDB.amount,
+          exchangeRate = sellCurrencyFromDB.exchangeRate,
+          exchangeCount = sellCurrencyFromDB.exchangeCount,
+          fee = sellCurrencyFromDB.fee
+        )
+
+      } ?: newSellCurrencyItem
+      mSellCurrencyLiveData.value = updatedSellCurrency
+      updateReceiveCurrencyAmount(updatedSellCurrency, newReceiveCurrencyItem)
+    }
+  }
+
+  fun updateReceiveCurrency(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem) {
+    viewModelScope.launch {
+      updateReceiveCurrencyAmount(sellCurrency, receiveCurrency)
+    }
+  }
+
+  fun updateSellCurrency(sellCurrency: CurrencyDataItem, receiveCurrency: CurrencyDataItem?) {
+    updateSellCurrencyDataItemFromDB(sellCurrency, receiveCurrency)
+  }
+
+  private suspend fun updateReceiveCurrencyAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?) {
+    val sellCurrencyFromDB = sellCurrency?.currencyName?.let { getCurrencyByName(it) }
+    val receiveCurrencyFromDB = receiveCurrency?.currencyName?.let { getCurrencyByName(it) }
+
+    val updatedReceiveAmount = receiveCurrencyExchangeAmount(
+      sellCurrency?.copy(amount = sellCurrencyFromDB?.amount.roundAmount()),
+      receiveCurrency?.copy(
+        amount = receiveCurrencyFromDB?.amount.roundAmount(),
+        exchangeRate = receiveCurrencyFromDB?.exchangeRate ?: receiveCurrency.exchangeRate,
+        exchangeCount = receiveCurrencyFromDB?.exchangeCount,
+        fee = receiveCurrencyFromDB?.fee ?: receiveCurrency.fee
       )
-    }
-  }
-
-  fun getCurrencyExchangeRatesFromDatabase() {
-    mExchangeRatesLoading.value = true
-    viewModelScope.launch {
-      updateCurrencyExchangeRatesFromDatabase()
-    }
-  }
-
-  fun updateReceiveCurrency(receiveCurrency: CurrencyDataItem) {
-    viewModelScope.launch {
-      if (receiveCurrency.currencyName == null) return@launch
-      updateReceiveCurrencyAmount(sellCurrencyLiveData.value!!, receiveCurrency)
-    }
-  }
-
-  fun updateSellCurrency(sellCurrency: CurrencyDataItem) {
-    updateCurrencyDataItemFromDB(sellCurrency)
-  }
-
-  private fun updateAmountOfSelectedCurrencies(currenciesData: Pair<CurrencyDataItem?, CurrencyDataItem?>) {
-    val (sellCurrency, receiveCurrency) = currenciesData
-    if (sellCurrency == null || receiveCurrency == null || isCurrencyDataFieldsNotValid(sellCurrency) || isCurrencyDataFieldsNotValid(
-        receiveCurrency
-      )
-    ) return
-    viewModelScope.launch {
-      val sellAmountLeft = getCurrencyByName(sellCurrency.currencyName!!)?.amount ?: 0.00
-      sellCurrencyLiveData.value = sellCurrency.copy(amount = sellAmountLeft.roundAmount())
-      mSellCurrencyAmountLeft.value = sellAmountLeft.roundAmount()
-
-      val receive = receiveCurrencyExchangeAmount(sellCurrency, receiveCurrency)
-      receiveCurrencyLiveData.value = receiveCurrency.copy(operationalAmount = receive.roundAmount())
-      mReceivedAmountOfSelectedCurrency.value = receive.roundAmount()
-    }
-  }
-
-  private fun updateReceiveCurrencyAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?) {
-    val sellCurrencyName = sellCurrency?.currencyName
-
-    receiveCurrency?.let {
-      viewModelScope.launch {
-        val sellAmountLeft = sellCurrencyName?.let { getCurrencyByName(it)?.amount } ?: 0.00
-        val receive = receiveCurrencyExchangeAmount(sellCurrency?.copy(amount = sellAmountLeft.roundAmount()), receiveCurrency)
-        receiveCurrencyLiveData.value = receiveCurrency.copy(operationalAmount = receive.roundAmount())
-      }
-    }
+    ).roundAmount()
+    mReceiveCurrencyLiveData.value = receiveCurrency?.copy(operationalAmount = updatedReceiveAmount)
   }
 
   fun submitCurrencyExchange(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?) {
@@ -169,24 +131,19 @@ class MainViewModel @Inject constructor(
           exchangeCount = sellCurrency.exchangeCount!! + 1
         )
         updateCurrencyExchange(updatedSellCurrency)
-        sellCurrencyLiveData.value = updatedSellCurrency
 
         val updatedReceiveCurrency = receiveCurrency.copy(
-          amount = receiveCurrency.amount!! + receiveCurrencyAmount
+          amount = (receiveCurrency.amount ?: 0.0) + receiveCurrencyAmount
         )
         updateCurrencyExchange(updatedReceiveCurrency)
-        receiveCurrencyLiveData.value = updatedReceiveCurrency
 
         updateFeeFor(sellCurrency, sellCurrency.operationalAmount)
-        Log.d("MainViewModel", "updateCurrencyExchangeRatesFromDatabase")
+
+        mSellCurrencyLiveData.value = updatedSellCurrency
+        mReceiveCurrencyLiveData.value = updatedReceiveCurrency
       }
     }
     mIsLoadingAfterSubmit.value = false
-  }
-
-  override fun onCleared() {
-    super.onCleared()
-//    updateCurrentCurrencySelection.removeObserver(updateCurrentCurrencySelectionObserver)
   }
 
   private fun isOperationPossible(sellCurrency: CurrencyDataItem, receiveCurrency: CurrencyDataItem): Boolean {
@@ -205,49 +162,28 @@ class MainViewModel @Inject constructor(
     return listOfCurrencyDataFields.all { it == null }
   }
 
-  private suspend fun updateCurrencyExchangeRatesFromDatabase() {
-    val currencies = repository.getCurrenciesFromDatabase()
-    currencyBalanceDBLiveData.value = currencies.mapToCurrencyDataItemList().let { currencyDataItems ->
-      currencyDataItems.map { it.copy(amount = it.amount.roundAmount()) }
-        .sortedWith(comparator = compareByDescending<CurrencyDataItem> { it.amount }
-          .thenBy { it.currencyName })
-    }
-    mExchangeRatesLoading.value = false
+  private fun receiveCurrencyAmountFromEuro(currencyToBuy: CurrencyDataItem?, amountToSell: Double): Double {
+    if (currencyToBuy?.exchangeRate == null) return 0.00
+    return amountToSell * currencyToBuy.exchangeRate
   }
 
-  private suspend fun receiveCurrencyAmountFromEuro(currencyNameToBuy: String?, amountToSell: Double): Double {
-    if (currencyNameToBuy == null) return 0.00
-    val currencyRate = getCurrencyRateByName(currencyNameToBuy)
-    return amountToSell * currencyRate
+  private fun convertToEuro(currency: CurrencyDataItem?): Double {
+    if (currency?.operationalAmount == null) return 0.00
+    val currencyRate = currency.exchangeRate
+    return currency.operationalAmount / currencyRate
   }
 
-  private suspend fun convertToEuro(currencyName: String?, operationalAmount: Double?): Double {
-    if (currencyName == null || operationalAmount == null) return 0.00
-    val currencyRate = getCurrencyRateByName(currencyName)
-    return operationalAmount / currencyRate
-  }
-
-  private suspend fun getCurrencyRateByName(currencyName: String): Double {
-    return getCurrencyItemFromDBBy(currencyName)?.exchangeRate ?: 0.00
-  }
-
-  private suspend fun getCurrencyItemFromDBBy(currencyName: String?): CurrencyDataItem? {
-    if (currencyName == null) return null
-    return getCurrencyByName(currencyName)
-  }
-
-  private suspend fun receiveCurrencyExchangeAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?): Double {
+  private fun receiveCurrencyExchangeAmount(sellCurrency: CurrencyDataItem?, receiveCurrency: CurrencyDataItem?): Double {
     Log.d("MainViewModel", "receiveCurrencyExchangeAmount")
     if (sellCurrency == null || receiveCurrency == null) return 0.00
-    val euroAmountOfCurrencyToSell = convertToEuro(sellCurrency.currencyName, sellCurrency.operationalAmount)
-    return receiveCurrencyAmountFromEuro(receiveCurrency.currencyName, euroAmountOfCurrencyToSell)
+    val euroAmountOfCurrencyToSell = convertToEuro(sellCurrency)
+    return receiveCurrencyAmountFromEuro(receiveCurrency, euroAmountOfCurrencyToSell)
   }
 
   private suspend fun updateFeeFor(sellCurrency: CurrencyDataItem?, soldAmount: Double) {
     sellCurrency?.let {
-      if (sellCurrency.currencyName == null) return
       val fee = repository.getSoldCurrencyFee(sellCurrency.currencyName, soldAmount)
-      sellCurrencyLiveData.value = sellCurrency.copy(fee = fee)
+      mSellCurrencyLiveData.value = sellCurrency.copy(fee = fee)
     }
   }
 

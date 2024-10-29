@@ -13,10 +13,14 @@ import com.example.paysera_network.models.CurrencyRate
 import com.example.paysera_network.service.CurrencyExchangeInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+private const val FEE_VALUE = 0.007
 
 class CurrencyExchangeRepository @Inject constructor(
   private val database: DatabaseRepositoryImpl,
@@ -53,6 +57,14 @@ class CurrencyExchangeRepository @Inject constructor(
     }
   }
 
+  fun getCurrencyExchangeRatesFromDatabase(): Flow<List<Currency>> {
+    return database.currencyExchangeDao().getAllCurrenciesFlow()
+      .map { currencyList ->
+        currencyList.mapToCurrencyList().sortedByDescending { it.amount }
+      }
+      .distinctUntilChanged()
+  }
+
   suspend fun getCurrenciesFromDatabase(): List<Currency> {
     return withContext(Dispatchers.IO) {
       val databaseList = database.currencyExchangeDao().getAllCurrencies()
@@ -73,7 +85,7 @@ class CurrencyExchangeRepository @Inject constructor(
       return@withContext if (currency.isFeeFree()) {
         0.0
       } else {
-        soldAmount * 0.007
+        soldAmount * FEE_VALUE
       }
     }
   }

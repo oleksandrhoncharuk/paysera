@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
 import com.example.paysera_compose_ui.model.isBalanceNullOrEmpty
+import com.example.paysera_database.model.roundAmount
 
 @Composable
 fun BalanceRow(state: CurrencyState?) {
@@ -32,7 +33,7 @@ fun BalanceRow(state: CurrencyState?) {
     ) {
       items(state.balance!!.entries.toList()) { currency ->
         Text(
-          text = "${currency.key} ${currency.value}",
+          text = "${currency.key} ${currency.value.roundAmount()}",
           color = Color.Black,
           fontSize = 20.sp,
           fontWeight = FontWeight.Bold

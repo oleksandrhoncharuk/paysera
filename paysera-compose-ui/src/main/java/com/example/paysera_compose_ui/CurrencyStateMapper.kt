@@ -22,6 +22,8 @@ fun CurrencyStateItem.mapToCurrencyDataItem() = CurrencyDataItem(
   exchangeCount = exchangeCount
 )
 
+fun List<CurrencyDataItem>?.mapToCurrencyStateList() = this?.map { it.mapToCurrencyState() }
+
 fun CurrencyData.mapToCurrencyState() = CurrencyState(
   balance = balance ?: emptyMap(),
   sellStateItem = sellCurrency?.mapToCurrencyState(),

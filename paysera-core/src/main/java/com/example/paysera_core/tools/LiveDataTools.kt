@@ -1,7 +1,5 @@
 package com.example.paysera_core.tools
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
 import com.example.paysera_core.model.CurrencyDataItem
 import com.example.paysera_core.model.CurrencyData
 
@@ -9,9 +7,6 @@ internal fun combine(
   currencies: List<CurrencyDataItem>?,
   sellCurrency: CurrencyDataItem?,
   receiveCurrency: CurrencyDataItem?,
-  updatedSellAmount: Double? = null,
-  updatedReceiveAmount: Double? = null,
-  fee: Double? = null,
 ): CurrencyData {
 
   val balance = currencies?.associate { it.currencyName to it.amount } ?: emptyMap()
@@ -21,9 +16,9 @@ internal fun combine(
       currencyName = it.currencyName,
       exchangeRate = it.exchangeRate,
       operationalAmount = it.operationalAmount,
-      amount = updatedSellAmount ?: it.amount,
+      amount = it.amount,
       exchangeCount = it.exchangeCount,
-      fee = fee ?: it.fee
+      fee = it.fee
     )
   }
 
@@ -31,7 +26,7 @@ internal fun combine(
     CurrencyDataItem(
       currencyName = it.currencyName,
       exchangeRate = it.exchangeRate,
-      operationalAmount = updatedReceiveAmount ?: it.operationalAmount,
+      operationalAmount = it.operationalAmount,
       amount = it.amount,
       exchangeCount = it.exchangeCount
     )

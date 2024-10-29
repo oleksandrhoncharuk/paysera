@@ -27,6 +27,7 @@ import androidx.lifecycle.map
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.mapToCurrencyDataItem
 import com.example.paysera_compose_ui.mapToCurrencyState
+import com.example.paysera_compose_ui.mapToCurrencyStateList
 import com.example.paysera_compose_ui.model.CurrencyStateItem
 import com.example.paysera_core.viewmodel.MainViewModel
 
@@ -39,40 +40,27 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
   val context = LocalContext.current
   val toastMessage = stringResource(R.string.similar_currency_operation_text)
 
-  val updateReceiveCurrency: (CurrencyStateItem?) -> Unit = { receiveCurrencyStateItem ->
-    receiveCurrencyStateItem?.let {
-      viewModel.updateReceiveCurrency(receiveCurrencyStateItem.mapToCurrencyDataItem())
-    }
-  }
-
-  val updateSellCurrency: (CurrencyStateItem?) -> Unit = { sellCurrencyStateItem ->
-    sellCurrencyStateItem?.let {
-      viewModel.updateSellCurrency(sellCurrencyStateItem.mapToCurrencyDataItem())
-    }
-  }
-
-  val submitClick: () -> Unit = { ->
-    currencyState.value?.let {
-      if (it.sellStateItem?.currencyName.equals(it.receiveStateItem?.currencyName, ignoreCase = true)) {
-        Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
-        return@let
-      }
-      viewModel.submitCurrencyExchange(
-        sellCurrency = it.sellStateItem?.mapToCurrencyDataItem(),
-        receiveCurrency = it.receiveStateItem?.mapToCurrencyDataItem())
-      if (!isLoading.value) {
-        showDialog.value = true
-      }
-    }
-  }
-
   if (currencyState.value == null || currencyState.value?.sellStateItem == null || currencyState.value?.receiveStateItem == null) {
     CircularProgressIndicator()
   } else {
     Scaffold(
       topBar = { TopBar() },
       bottomBar = {
-        SubmitButton(submitClick)
+        SubmitButton { ->
+          currencyState.value?.let {
+            if (it.sellStateItem?.currencyName.equals(it.receiveStateItem?.currencyName, ignoreCase = true)) {
+              Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+              return@let
+            }
+            viewModel.submitCurrencyExchange(
+              sellCurrency = it.sellStateItem?.mapToCurrencyDataItem(),
+              receiveCurrency = it.receiveStateItem?.mapToCurrencyDataItem()
+            )
+            if (!isLoading.value) {
+              showDialog.value = true
+            }
+          }
+        }
       }
     ) { paddingValues ->
       Box(
@@ -98,49 +86,33 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
             modifier = Modifier.padding(top = 25.dp, bottom = 15.dp)
           )
 
-          CurrencyExchangeSellItem(currencyState.value!!, updateSellCurrency)
+          CurrencyExchangeSellItem(currencyState.value!!) { sellCurrencyStateItem ->
+            sellCurrencyStateItem?.let {
+              viewModel.updateSellCurrency(
+                sellCurrencyStateItem.mapToCurrencyDataItem(),
+                currencyState.value?.receiveStateItem?.mapToCurrencyDataItem()
+              )
+            }
+          }
 
           HorizontalDivider(
             color = Color.LightGray,
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp)
           )
 
-          CurrencyExchangeReceiveItem(currencyState.value!!, updateReceiveCurrency)
+          CurrencyExchangeReceiveItem(currencyState.value!!) { receiveCurrencyStateItem ->
+            receiveCurrencyStateItem?.let {
+              viewModel.updateReceiveCurrency(
+                currencyState.value?.sellStateItem?.mapToCurrencyDataItem(),
+                receiveCurrencyStateItem.mapToCurrencyDataItem()
+              )
+            }
+          }
 
           if (showDialog.value) {
-            AlertDialog(
-              onDismissRequest = {
-                // Dismiss the dialog when the user taps outside the dialog or the back button
-                showDialog.value = false
-              },
-              title = {
-                Text(text = stringResource(R.string.dialog_title))
-              },
-              text = {
-                Text(
-                  text = stringResource(
-                    R.string.dialog_message,
-                    currencyState.value!!.sellStateItem!!.operationalAmount,
-                    currencyState.value!!.sellStateItem!!.currencyName,
-                    currencyState.value!!.receiveStateItem!!.operationalAmount,
-                    currencyState.value!!.receiveStateItem!!.currencyName,
-                    currencyState.value!!.sellStateItem!!.fee
-                  )
-                )
-              },
-              confirmButton = {
-                Button(
-                  onClick = {
-                    showDialog.value = false
-                  },
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                ) {
-                  Text(text = stringResource(R.string.dialog_done))
-                }
-              }
-            )
+            PayseraDialog(currencyState.value!!) {
+              showDialog.value = false
+            }
           }
         }
       }

@@ -27,8 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
 import com.example.paysera_compose_ui.model.CurrencyStateItem
-import com.example.paysera_compose_ui.model.CurrencyStateItemSaver
-import com.example.paysera_compose_ui.model.getSortedBalanceList
+import com.example.paysera_compose_ui.model.getCurrenciesNamesList
 
 @Composable
 fun CurrencyExchangeSellItem(
@@ -91,7 +90,7 @@ fun CurrencyExchangeSellItem(
         )
 
         DropDownCurrency(
-          balance = currencyState.getSortedBalanceList(),
+          balance = currencyState.getCurrenciesNamesList(),
           currencyStateItem = currencyState.sellStateItem,
           currencyStateUpdate = currencyStateUpdate
         )

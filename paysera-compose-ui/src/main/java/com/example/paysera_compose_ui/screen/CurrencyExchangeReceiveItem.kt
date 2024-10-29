@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -21,8 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
 import com.example.paysera_compose_ui.model.CurrencyStateItem
-import com.example.paysera_compose_ui.model.getSortedBalanceList
-import com.example.paysera_compose_ui.model.isNullOrEmpty
+import com.example.paysera_compose_ui.model.getCurrenciesNamesList
 import com.example.paysera_compose_ui.theme.LightGreen
 
 @Composable
@@ -70,7 +67,7 @@ fun CurrencyExchangeReceiveItem(
         )
 
         DropDownCurrency(
-          balance = currencyState.getSortedBalanceList(),
+          balance = currencyState.getCurrenciesNamesList(),
           currencyStateItem = currencyState.receiveStateItem,
           currencyStateUpdate = currencyStateUpdate
         )
