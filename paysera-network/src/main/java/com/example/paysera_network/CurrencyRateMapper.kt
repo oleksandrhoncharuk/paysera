@@ -9,4 +9,10 @@ fun CurrencyRatesResponse.mapToCurrencyRate() = CurrencyRate(
   rates = rates
 )
 
+fun CurrencyRate.mapToCurrencyRatesResponse() = CurrencyRatesResponse(
+  base = base,
+  date = date,
+  rates = rates
+)
+
 fun CurrencyRate.getExchangeRate(currency: String) = rates[currency] ?: 0.0

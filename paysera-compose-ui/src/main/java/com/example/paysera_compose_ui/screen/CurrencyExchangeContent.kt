@@ -4,20 +4,13 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -27,18 +20,22 @@ import androidx.lifecycle.map
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.mapToCurrencyDataItem
 import com.example.paysera_compose_ui.mapToCurrencyState
-import com.example.paysera_compose_ui.mapToCurrencyStateList
-import com.example.paysera_compose_ui.model.CurrencyStateItem
 import com.example.paysera_core.viewmodel.MainViewModel
 
 @Composable
 fun CurrencyExchangeContent(viewModel: MainViewModel) {
   val currencyState = viewModel.currencyDataLiveData.map { it.mapToCurrencyState() }.observeAsState()
-  val isLoading = viewModel.isLoadingAfterSubmit.observeAsState(false)
-  val showDialog = rememberSaveable { mutableStateOf(false) }
+  val submitError = viewModel.submitError.observeAsState(false)
+  val showDialog = viewModel.showSubmitDialog.observeAsState(false)
 
   val context = LocalContext.current
   val toastMessage = stringResource(R.string.similar_currency_operation_text)
+  val errorMessage = stringResource(R.string.submit_error_text)
+
+  if (submitError.value) {
+    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
+    viewModel.dismissDialog()
+  }
 
   if (currencyState.value == null || currencyState.value?.sellStateItem == null || currencyState.value?.receiveStateItem == null) {
     CircularProgressIndicator()
@@ -48,7 +45,7 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
       bottomBar = {
         SubmitButton { ->
           currencyState.value?.let {
-            if (it.sellStateItem?.currencyName.equals(it.receiveStateItem?.currencyName, ignoreCase = true)) {
+            if (viewModel.isCurrenciesSame(it.sellStateItem?.mapToCurrencyDataItem(), it.receiveStateItem?.mapToCurrencyDataItem())) {
               Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
               return@let
             }
@@ -56,9 +53,9 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
               sellCurrency = it.sellStateItem?.mapToCurrencyDataItem(),
               receiveCurrency = it.receiveStateItem?.mapToCurrencyDataItem()
             )
-            if (!isLoading.value) {
-              showDialog.value = true
-            }
+//            if (!isLoading.value && !submitError.value) {
+//              showDialog.value = true
+//            }
           }
         }
       }
@@ -111,7 +108,7 @@ fun CurrencyExchangeContent(viewModel: MainViewModel) {
 
           if (showDialog.value) {
             PayseraDialog(currencyState.value!!) {
-              showDialog.value = false
+              viewModel.dismissDialog()
             }
           }
         }

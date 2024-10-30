@@ -27,5 +27,3 @@ fun CurrencyExchange.updateWithCurrency(currency: Currency): CurrencyExchange {
 }
 
 fun List<CurrencyExchange>.mapToCurrencyList() = map { it.mapToCurrency() }
-
-fun Currency.isFeeFree() = exchangeCount < 5

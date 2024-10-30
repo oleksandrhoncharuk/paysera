@@ -1,13 +1,13 @@
-package com.example.paysera_database.di
+package com.example.paysera_database.db_di
 
 import android.content.Context
+import com.example.paysera_database.db.DatabaseRepository
 import com.example.paysera_database.db.DatabaseRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
 @Module
@@ -18,7 +18,7 @@ object DatabaseModule {
   @Singleton
   fun provideDatabaseRepository(
     @ApplicationContext context: Context,
-  ): DatabaseRepositoryImpl {
+  ): DatabaseRepository {
     return DatabaseRepositoryImpl(context)
   }
 }

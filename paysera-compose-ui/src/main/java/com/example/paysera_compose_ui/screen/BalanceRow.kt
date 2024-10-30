@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 import com.example.paysera_compose_ui.R
 import com.example.paysera_compose_ui.model.CurrencyState
 import com.example.paysera_compose_ui.model.isBalanceNullOrEmpty
-import com.example.paysera_database.model.roundAmount
+import com.example.paysera_core.repository.mapper.roundAmount
 
 @Composable
 fun BalanceRow(state: CurrencyState?) {

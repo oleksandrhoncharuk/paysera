@@ -10,7 +10,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,9 +38,11 @@ fun DropDownCurrency(
 
   Box {
     Row(
-      modifier = Modifier.clickable {
-        isDropDownExpanded.value = true
-      }.wrapContentWidth(),
+      modifier = Modifier
+        .clickable {
+          isDropDownExpanded.value = true
+        }
+        .wrapContentWidth(),
       verticalAlignment = Alignment.CenterVertically
     ) {
       if (balance.isNotEmpty()) {

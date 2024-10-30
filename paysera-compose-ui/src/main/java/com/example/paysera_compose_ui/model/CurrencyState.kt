@@ -18,19 +18,6 @@ fun CurrencyState?.isBalanceNullOrEmpty(): Boolean {
   return balance.isNullOrEmpty()
 }
 
-fun CurrencyState.isSellStateItemNull(): Boolean {
-  return sellStateItem == null
-}
-
-fun CurrencyState.isReceiveStateItemNull(): Boolean {
-  return receiveStateItem == null
-}
-
-fun CurrencyState?.isNullOrEmpty(): Boolean {
-  if (this == null) return true
-  return balance.isNullOrEmpty() && sellStateItem == null && receiveStateItem == null
-}
-
 fun CurrencyState.getCurrenciesNamesList(): List<String> {
   if (balance.isNullOrEmpty()) return emptyList()
   return balance

@@ -4,7 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.example.paysera_core.repository.CurrencyExchangeRepository
+import com.example.paysera_core.repository.CurrencyExchangeRepositoryImpl
 import com.example.paysera_core.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -18,28 +18,23 @@ import javax.inject.Inject
 class CurrencyForegroundService: Service() {
 
   @Inject
-  lateinit var repository: CurrencyExchangeRepository
+  lateinit var repository: CurrencyExchangeRepositoryImpl
 
   private val serviceJob = Job()
   private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
   override fun onCreate() {
     super.onCreate()
-
-    // Start the service in the foreground immediately
     startForegroundServiceWithNotification()
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    // Start periodic network call using repository
     serviceScope.launch {
       while (true) {
         repository.fetchCurrencyExchangeRates()
-        // Do something with the rates
-        delay(5000) // 5 seconds delay
+        delay(5000)
       }
     }
-
     return START_STICKY
   }
 
@@ -52,7 +47,6 @@ class CurrencyForegroundService: Service() {
     return null
   }
 
-  // Start the foreground notification
   private fun startForegroundServiceWithNotification() {
     val notification = NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle("Currency Updates")
